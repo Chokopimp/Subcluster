@@ -30,7 +30,7 @@ double maximos(double pry[],int fila, int colum)
   return max;  
 }
 
-double referencia (double pry[],int fila, int column, int colum)
+double referencia (double pry[],int fila, int colum)
 {
   int i;
   double maxim, maxPotIndex;
@@ -47,13 +47,13 @@ double referencia (double pry[],int fila, int column, int colum)
 
 void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxArray *inargs[])
 {
-	int i, j, rows, cols, arar,maxPotIndex , l, findMore, numClusters, maxPotRatio;//,minDist; 
-  double *input_matrix, *maximum, *minimum, *RAR,*sigmas,RA,*normalize,*potVals , *dx1,*dx2, dxSq,minDistSq, *d2, refPotVal, *newX, *maxPoint,*centers, minDist,maxPotVal;
-  mxArray  *mat_aux[6];
+	int i, j, rows, cols,  maxPotIndex , l, findMore, numClusters, maxPotRatio;//,minDist; 
+  double *input_matrix, *maximum, *minimum, *RAR,*sigmas,RA,*normalize,*potVals , *dx1,*dx2, dxSq,minDistSq, d2, refPotVal, *newX, *maxPoint,*centers, minDist,maxPotVal;
+  mxArray  *mat_aux[8];
     
 	if ( num_inputs < 2 )
     mexErrMsgTxt("Too few input arguments!");
-	else if ( num_outputs > 10 )
+	else if ( num_outputs > 3 )
     mexErrMsgTxt("Too many output arguments!");
 
     //original matrix
@@ -64,9 +64,9 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
   RAR = mxGetPr(inargs[1]);
 
     //Mins
-  outargs[0]=mxCreateDoubleMatrix(1,cols, mxREAL);
+  mat_aux[0]=mxCreateDoubleMatrix(1,cols, mxREAL);
 
-	minimum = mxGetPr(outargs[0]);
+	minimum = mxGetPr(mat_aux[0]);
 
   for(j=0; j < cols; j++)
   {
@@ -74,9 +74,9 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
   }
 
     //Maxs
-  outargs[1]=mxCreateDoubleMatrix(1,cols, mxREAL);
+  mat_aux[1]=mxCreateDoubleMatrix(1,cols, mxREAL);
     
-  maximum = mxGetPr(outargs[1]);
+  maximum = mxGetPr(mat_aux[1]);
     
   for(i=0; i < cols; i++)
   {
@@ -85,8 +85,8 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
     
     //Sigmas
   RA = RAR[0];
-  outargs[2]=mxCreateDoubleMatrix(1,cols, mxREAL);
-  sigmas = mxGetPr(outargs[2]);
+  outargs[0]=mxCreateDoubleMatrix(1,cols, mxREAL);
+  sigmas = mxGetPr(outargs[0]);
 
   for(j=0; j < cols; j++)
   {
@@ -94,8 +94,8 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
   }
     
   //Normalize the data into a unit hyperbox using the verified minX and maxX
-  mat_aux[0]=mxCreateDoubleMatrix(rows,cols, mxREAL); 
-  normalize = mxGetPr(mat_aux[0]);
+  mat_aux[2]=mxCreateDoubleMatrix(rows,cols, mxREAL); 
+  normalize = mxGetPr(mat_aux[2]);
     
   for(i=0; i < rows; i++)
   {
@@ -106,12 +106,11 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
 	}    
 
 //    compute the initial potentials for each data point
-  mat_aux[1] = mxCreateDoubleMatrix(1,rows, mxREAL); 
-  potVals = mxGetPr(mat_aux[1]);
-  mat_aux[2] = mxCreateDoubleMatrix(rows,cols, mxREAL); 
-  d2 = mxGetPr(mat_aux[2]);
-  mat_aux[3] = mxCreateDoubleMatrix(rows,cols, mxREAL); 
-  dx2 = mxGetPr(mat_aux[3]);
+  mat_aux[3] = mxCreateDoubleMatrix(1,rows, mxREAL); 
+  potVals = mxGetPr(mat_aux[3]);
+  
+  mat_aux[4] = mxCreateDoubleMatrix(rows,cols, mxREAL); 
+  dx2 = mxGetPr(mat_aux[4]);
  
 
   for(l=0; l < rows; l++)
@@ -119,22 +118,22 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
     potVals[l]=0;
     for(j=0; j < rows; j++)
     {
-      d2[j]=0;
+      d2=0;
       for(i=0; i < cols; i++)
       {
         dx2[j+i*rows] = (normalize[l+i*rows] - normalize[j+i*rows])/RA;
-       d2[j] = d2[j] + (dx2[j+i*rows]*dx2[j+i*rows]);//^2;
+       d2 = d2 + (dx2[j+i*rows]*dx2[j+i*rows]);//^2;
       }
-      potVals[l] = potVals[l] + exp(-4*d2[j]);     
+      potVals[l] = potVals[l] + exp(-4*d2);     
     }
   }
 
-  mat_aux[4] = mxCreateDoubleMatrix(1,1, mxREAL);
-  newX = mxGetPr(mat_aux[4]);
+  mat_aux[5] = mxCreateDoubleMatrix(1,1, mxREAL);
+  newX = mxGetPr(mat_aux[5]);
     
   for(i=0; i < cols; i++)
   {
-    newX[i] = referencia(potVals,rows,cols,i);
+    newX[i] = referencia(potVals,rows,i);
   }
   maxPotIndex = (int)newX[0];
   refPotVal  =  maximos(potVals,cols,1);
@@ -143,12 +142,14 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
  /* Start iteratively finding cluster centers and subtracting potential
   from neighboring data points.  maxPotVal is the current highest
   potential value and maxPotIndex is the associated data point's index. */
-  outargs[3]=mxCreateDoubleMatrix(rows, cols, mxREAL);
-  centers = mxGetPr(outargs[3]);
+  outargs[1]=mxCreateDoubleMatrix(rows, cols, mxREAL);
+  centers = mxGetPr(outargs[1]);
   numClusters = 0;
   findMore = 1;
-  mat_aux[5] = mxCreateDoubleMatrix(1,cols, mxREAL);
-  maxPoint = mxGetPr(mat_aux[5]);
+  mat_aux[6] = mxCreateDoubleMatrix(1,cols, mxREAL);
+  maxPoint = mxGetPr(mat_aux[6]);
+  mat_aux[7] = mxCreateDoubleMatrix(1,cols, mxREAL);
+  dx1 = mxGetPr(mat_aux[7]);
 
   while(findMore && maxPotVal)
   {
@@ -175,7 +176,7 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
         dxSq = 0.0;
         for(i=0; i<cols ;i++)
         {
-          dx1[i]=(maxPoint[i] - centers[j+i*rows])/RA;
+          dx1[i]=(maxPoint[i] - centers[j+i*numClusters])/RA;
           dxSq = dxSq + (dx1[i]* dx1[i]);// dx1[i]^2
         }
 
@@ -200,23 +201,23 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
     
     if(findMore == 1)
     {
-      
-
       for(i=0; i<cols; i++)
       {
         centers[(numClusters)+i*rows] = maxPoint[i];
       }
 
+      numClusters = numClusters + 1;
+
       for(j = 0; j < rows; j++) //subtract potential from data points near the new cluster center.
       {
-        d2[j] = 0.0;
+        d2 = 0.0;
        
         for(i = 0; i < cols; i++ )
         {
           dx2[j+i*rows] = (maxPoint[i]-normalize[j+i*rows])/(1.25*RA);
-          d2[j] = d2[j] + (dx2[j+i*rows]*dx2[j+i*rows]);
+          d2 = d2 + (dx2[j+i*rows]*dx2[j+i*rows]);
         }
-        potVals[j] = potVals[j] - maxPotVal*exp(-4*d2[j]);//deduct(pp);
+        potVals[j] = potVals[j] - maxPotVal*exp(-4*d2);//deduct(pp);
        
         if(potVals[j]<0)
         {
@@ -226,13 +227,12 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
 
       for(i=0; i < cols; i++)
       {
-        newX[i] = referencia(potVals,rows,cols,i);
+        newX[i] = referencia(potVals,rows,i);
       }
 
-      maxPotIndex = newX[0]; 
+      maxPotIndex = (int)newX[0]; 
       refPotVal  =  maximos(potVals,cols,1);
       maxPotVal = refPotVal; //[maxPotVal,maxPotIndex] = maximos(potVals); //find the data point with the highest remaining potential
-      numClusters = numClusters + 1;
     }
     
     else if(findMore == 2)
@@ -241,10 +241,10 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
       
       for(i=0; i < cols; i++)
       {
-        newX[i] = referencia(potVals,rows,cols,i);
+        newX[i] = referencia(potVals,rows,i);
       }
 
-      maxPotIndex = newX[0]; 
+      maxPotIndex = (int)newX[0]; 
       refPotVal  =  maximos(potVals,cols,1);
       maxPotVal = refPotVal; //[maxPotVal,maxPotIndex] = maximos(potVals);
     }
@@ -254,7 +254,7 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
   {
     for(i=0; i<cols; i++)
     {
-      centers[j+i*numClusters] = (centers[j+i*numClusters] * (maximum[i] - minimum[i])) + minimum[i];
+      centers[j+i*rows] = (centers[j+i*rows] * (maximum[i] - minimum[i])) + minimum[i];
     }
   }
 }
