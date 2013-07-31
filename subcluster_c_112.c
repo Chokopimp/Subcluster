@@ -144,6 +144,7 @@ void mexFunction(int num_outputs, mxArray *outargs[], int num_inputs, const mxAr
   potential value and maxPotIndex is the associated data point's index. */
   outargs[1]=mxCreateDoubleMatrix(rows, cols, mxREAL);
   centers = mxGetPr(outargs[1]);
+ 
   numClusters = 0;
   findMore = 1;
   mat_aux[6] = mxCreateDoubleMatrix(1,cols, mxREAL);
